@@ -43,6 +43,7 @@ class ProductController extends Controller
             'receipt_number' => 'required|unique:products',
             'delivery_id' => 'required|exists:deliveries,id',
             'status_product_id' => 'required|exists:status_products,id',
+            'description' => 'nullable|string',
             'image' => 'nullable|image|max:2048'
         ], [
             'receipt_number.required' => 'Nomor resi harus diisi',
@@ -51,6 +52,7 @@ class ProductController extends Controller
             'delivery_id.exists' => 'Kurir tidak ditemukan',
             'status_product_id.required' => 'Status harus dipilih',
             'status_product_id.exists' => 'Status tidak ditemukan',
+            'description.string' => 'Deskripsi harus berupa teks',
             'image.image' => 'File harus berupa gambar',
             'image.max' => 'Ukuran gambar tidak boleh lebih dari 2MB'
         ]);
@@ -86,7 +88,18 @@ class ProductController extends Controller
             'receipt_number' => 'required|unique:products,receipt_number,' . $product->id,
             'delivery_id' => 'required|exists:deliveries,id',
             'status_product_id' => 'required|exists:status_products,id',
+            'description' => 'nullable|string',
             'image' => 'nullable|image|max:2048'
+        ], [
+            'receipt_number.required' => 'Nomor resi harus diisi',
+            'receipt_number.unique' => 'Nomor resi sudah digunakan',
+            'delivery_id.required' => 'Kurir harus dipilih',
+            'delivery_id.exists' => 'Kurir tidak ditemukan',
+            'status_product_id.required' => 'Status harus dipilih',
+            'status_product_id.exists' => 'Status tidak ditemukan',
+            'description.string' => 'Deskripsi harus berupa teks',
+            'image.image' => 'File harus berupa gambar',
+            'image.max' => 'Ukuran gambar tidak boleh lebih dari 2MB'
         ]);
 
         DB::transaction(function () use ($request, $validated, $product) {

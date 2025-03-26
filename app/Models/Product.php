@@ -16,7 +16,8 @@ class Product extends Model
         'delivery_id',
         'status_product_id',
         'image',
-        'created_by'  // Add this line
+        'description',
+        'created_by'
     ];
 
     protected $appends = ['image_url'];
