@@ -4,6 +4,7 @@ use App\Http\Controllers\API\AuthController;
 use App\Http\Controllers\API\ProductController;
 use App\Http\Controllers\API\DeliveryController;
 use App\Http\Controllers\API\StatusProductController;
+use App\Http\Controllers\API\EmployeeController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -20,6 +21,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('products', ProductController::class);
     Route::apiResource('deliveries', DeliveryController::class);
     Route::apiResource('status-products', StatusProductController::class);
+    Route::apiResource('employees', EmployeeController::class);
 
     Route::post('/logout', [AuthController::class, 'logout']);
 });

@@ -13,7 +13,7 @@ class ProductController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Product::with(['delivery', 'status', 'createdBy']);
+        $query = Product::with(['delivery', 'status', 'employee']);
 
         // Search by receipt number (case insensitive)
         if ($request->has('search')) {
@@ -43,8 +43,10 @@ class ProductController extends Controller
             'receipt_number' => 'required|unique:products',
             'delivery_id' => 'required|exists:deliveries,id',
             'status_product_id' => 'required|exists:status_products,id',
+            'employee_id' => 'required|exists:employees,id',
             'description' => 'nullable|string',
-            'image' => 'nullable|image|max:2048'
+            'image' => 'nullable|image|max:2048',
+            'unboxing_image' => 'nullable|image|max:2048'
         ], [
             'receipt_number.required' => 'Nomor resi harus diisi',
             'receipt_number.unique' => 'Nomor resi sudah digunakan',
@@ -54,7 +56,11 @@ class ProductController extends Controller
             'status_product_id.exists' => 'Status tidak ditemukan',
             'description.string' => 'Deskripsi harus berupa teks',
             'image.image' => 'File harus berupa gambar',
-            'image.max' => 'Ukuran gambar tidak boleh lebih dari 2MB'
+            'image.max' => 'Ukuran gambar tidak boleh lebih dari 2MB',
+            'unboxing_image.image' => 'File unboxing harus berupa gambar',
+            'unboxing_image.max' => 'Ukuran gambar unboxing tidak boleh lebih dari 2MB',
+            'employee_id.required' => 'Pegawai harus dipilih',
+            'employee_id.exists' => 'Pegawai tidak ditemukan'
         ]);
 
         $validated['created_by'] = auth()->id();
@@ -65,21 +71,18 @@ class ProductController extends Controller
                 $validated['image'] = $path;
             }
 
+            if ($request->hasFile('unboxing_image')) {
+                $path = $request->file('unboxing_image')->store('products/unboxing', 'public');
+                $validated['unboxing_image'] = $path;
+            }
+
             return Product::create($validated);
         });
 
         return response()->json([
             'message' => 'Berhasil menyimpan paket',
-            'data' => $product->load(['delivery', 'status', 'createdBy'])
+            'data' => $product->load(['delivery', 'status', 'employee'])
         ], 201);
-    }
-
-    public function show(Product $product)
-    {
-        return response()->json([
-            'message' => 'Product retrieved successfully',
-            'data' => $product->load(['delivery', 'status', 'createdBy'])
-        ]);
     }
 
     public function update(Request $request, Product $product)
@@ -89,7 +92,9 @@ class ProductController extends Controller
             'delivery_id' => 'required|exists:deliveries,id',
             'status_product_id' => 'required|exists:status_products,id',
             'description' => 'nullable|string',
-            'image' => 'nullable|image|max:2048'
+            'image' => 'nullable|image|max:2048',
+            'unboxing_image' => 'nullable|image|max:2048',
+            'employee_id' =>'required|exists:employees,id'
         ], [
             'receipt_number.required' => 'Nomor resi harus diisi',
             'receipt_number.unique' => 'Nomor resi sudah digunakan',
@@ -99,7 +104,11 @@ class ProductController extends Controller
             'status_product_id.exists' => 'Status tidak ditemukan',
             'description.string' => 'Deskripsi harus berupa teks',
             'image.image' => 'File harus berupa gambar',
-            'image.max' => 'Ukuran gambar tidak boleh lebih dari 2MB'
+            'image.max' => 'Ukuran gambar tidak boleh lebih dari 2MB',
+            'unboxing_image.image' => 'File unboxing harus berupa gambar',
+            'unboxing_image.max' => 'Ukuran gambar unboxing tidak boleh lebih dari 2MB',
+            'employee_id.required' => 'Pegawai harus dipilih',
+            'employee_id.exists' => 'Pegawai tidak ditemukan'
         ]);
 
         DB::transaction(function () use ($request, $validated, $product) {
@@ -107,9 +116,16 @@ class ProductController extends Controller
                 if ($product->image) {
                     Storage::disk('public')->delete($product->image);
                 }
-
                 $path = $request->file('image')->store('products', 'public');
                 $validated['image'] = $path;
+            }
+
+            if ($request->hasFile('unboxing_image')) {
+                if ($product->unboxing_image) {
+                    Storage::disk('public')->delete($product->unboxing_image);
+                }
+                $path = $request->file('unboxing_image')->store('products/unboxing', 'public');
+                $validated['unboxing_image'] = $path;
             }
 
             $product->update($validated);
@@ -118,6 +134,25 @@ class ProductController extends Controller
         return response()->json([
             'message' => 'Berhasil mengubah paket',
             'data' => $product->load(['delivery', 'status'])
+        ]);
+    }
+
+    public function destroy(Product $product)
+    {
+        DB::transaction(function () use ($product) {
+            if ($product->image) {
+                Storage::disk('public')->delete($product->image);
+            }
+
+            if ($product->unboxing_image) {
+                Storage::disk('public')->delete($product->unboxing_image);
+            }
+
+            $product->delete();
+        });
+
+        return response()->json([
+            'message' => 'Berhasil menghapus paket'
         ]);
     }
 
@@ -173,23 +208,6 @@ class ProductController extends Controller
         return response()->json([
             'message' => 'Chart data retrieved successfully',
             'data' => $chartData
-        ]);
-    }
-
-    public function destroy(Product $product)
-    {
-        DB::transaction(function () use ($product) {
-            // Delete associated image if exists
-            if ($product->image) {
-                Storage::disk('public')->delete($product->image);
-            }
-
-            // Delete the product (relationships will be handled by foreign key constraints)
-            $product->delete();
-        });
-
-        return response()->json([
-            'message' => 'Berhasil menghapus paket'
         ]);
     }
 }

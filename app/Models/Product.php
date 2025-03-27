@@ -16,16 +16,25 @@ class Product extends Model
         'delivery_id',
         'status_product_id',
         'image',
+        'unboxing_image',
         'description',
-        'created_by'
+        'employee_id'
     ];
 
-    protected $appends = ['image_url'];
+    protected $appends = ['image_url', 'unboxing_image_url'];
 
     public function getImageUrlAttribute()
     {
         if ($this->image) {
             return Storage::disk('public')->url($this->image);
+        }
+        return null;
+    }
+
+    public function getUnboxingImageUrlAttribute()
+    {
+        if ($this->unboxing_image) {
+            return Storage::disk('public')->url($this->unboxing_image);
         }
         return null;
     }
@@ -40,8 +49,10 @@ class Product extends Model
         return $this->belongsTo(StatusProduct::class, 'status_product_id');
     }
 
-    public function createdBy(): BelongsTo
+    public function employee(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'created_by');
+        return $this->belongsTo(Employee::class);
     }
+
+    // Remove the createdBy relation
 }
