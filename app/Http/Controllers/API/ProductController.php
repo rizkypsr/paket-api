@@ -8,33 +8,103 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 
 class ProductController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Product::with(['delivery', 'status', 'employee']);
+        $cacheKey = 'products_' . md5(json_encode($request->all()));
+        
+        return Cache::remember($cacheKey, now()->addMinutes(5), function () use ($request) {
+            $query = Product::with(['delivery', 'status', 'employee']);
 
-        // Search by receipt number (case insensitive)
-        if ($request->has('search')) {
-            $query->whereRaw('LOWER(receipt_number) LIKE ?', ['%' . strtolower($request->search) . '%']);
-        }
+            if ($request->has('search')) {
+                $query->whereRaw('LOWER(receipt_number) LIKE ?', ['%' . strtolower($request->search) . '%']);
+            }
 
-        // Filter by month
-        if ($request->has('month')) {
-            $query->whereMonth('created_at', $request->month);
-        }
+            if ($request->has('month')) {
+                $query->whereMonth('created_at', $request->month);
+            }
 
-        // Order by created_at with configurable direction
-        $orderDirection = $request->input('order_by', 'desc');
-        $query->orderBy('created_at', $orderDirection);
+            if ($request->has('year')) {
+                $query->whereYear('created_at', $request->year);
+            }
 
-        $products = $query->get();
+            if ($request->has('status_product_id')) {
+                $query->where('status_product_id', $request->status_product_id);
+            }
 
-        return response()->json([
-            'message' => 'Products retrieved successfully',
-            'data' => $products
-        ]);
+            if ($request->has('delivery_id')) {
+                $query->where('delivery_id', $request->delivery_id);
+            }
+
+            $products = $query->latest()->get();
+
+            return response()->json([
+                'message' => 'Products retrieved successfully',
+                'data' => $products
+            ]);
+        });
+    }
+
+    public function getChartData(Request $request)
+    {
+        $cacheKey = 'chart_data_' . $request->input('month', Carbon::now()->month) . '_' . $request->input('year', Carbon::now()->year);
+
+        return Cache::remember($cacheKey, now()->addHours(1), function () use ($request) {
+            $query = Product::query();
+
+            $month = $request->input('month', Carbon::now()->month);
+            $year = $request->input('year', Carbon::now()->year);
+
+            $query->whereMonth('created_at', $month)
+                ->whereYear('created_at', $year);
+
+            $returnCount = $query->clone()->whereHas('status', function ($q) {
+                $q->where('name', 'return');
+            })->count();
+
+            $sendedCount = $query->clone()->whereHas('status', function ($q) {
+                $q->where('name', 'sended');
+            })->count();
+
+            $chartData = [
+                'maxY' => max($returnCount, $sendedCount) + 2, // Adding padding for better visualization
+                'minY' => 0,
+                'barGroups' => [
+                    [
+                        'x' => 0,
+                        'barRods' => [
+                            [
+                                'y' => $returnCount,
+                                'color' => '#FF0000', // Red for returned
+                                'width' => 20,
+                                'borderRadius' => 4
+                            ]
+                        ],
+                        'label' => 'Returned'
+                    ],
+                    [
+                        'x' => 1,
+                        'barRods' => [
+                            [
+                                'y' => $sendedCount,
+                                'color' => '#00FF00', // Green for sent
+                                'width' => 20,
+                                'borderRadius' => 4
+                            ]
+                        ],
+                        'label' => 'Sent'
+                    ]
+                ]
+            ];
+
+            return response()->json([
+                'message' => 'Chart data retrieved successfully',
+                'data' => $chartData
+            ]);
+        });
     }
 
     public function store(Request $request)
@@ -81,7 +151,6 @@ class ProductController extends Controller
 
         return response()->json([
             'message' => 'Berhasil menyimpan paket',
-            'data' => $product->load(['delivery', 'status', 'employee'])
         ], 201);
     }
 
@@ -133,7 +202,6 @@ class ProductController extends Controller
 
         return response()->json([
             'message' => 'Berhasil mengubah paket',
-            'data' => $product->load(['delivery', 'status'])
         ]);
     }
 
@@ -153,61 +221,6 @@ class ProductController extends Controller
 
         return response()->json([
             'message' => 'Berhasil menghapus paket'
-        ]);
-    }
-
-    public function getChartData(Request $request)
-    {
-        $query = Product::query();
-
-        $month = $request->input('month', Carbon::now()->month);
-        $year = $request->input('year', Carbon::now()->year);
-
-        $query->whereMonth('created_at', $month)
-            ->whereYear('created_at', $year);
-
-        $returnCount = $query->clone()->whereHas('status', function ($q) {
-            $q->where('name', 'return');
-        })->count();
-
-        $sendedCount = $query->clone()->whereHas('status', function ($q) {
-            $q->where('name', 'sended');
-        })->count();
-
-        $chartData = [
-            'maxY' => max($returnCount, $sendedCount) + 2, // Adding padding for better visualization
-            'minY' => 0,
-            'barGroups' => [
-                [
-                    'x' => 0,
-                    'barRods' => [
-                        [
-                            'y' => $returnCount,
-                            'color' => '#FF0000', // Red for returned
-                            'width' => 20,
-                            'borderRadius' => 4
-                        ]
-                    ],
-                    'label' => 'Returned'
-                ],
-                [
-                    'x' => 1,
-                    'barRods' => [
-                        [
-                            'y' => $sendedCount,
-                            'color' => '#00FF00', // Green for sent
-                            'width' => 20,
-                            'borderRadius' => 4
-                        ]
-                    ],
-                    'label' => 'Sent'
-                ]
-            ]
-        ];
-
-        return response()->json([
-            'message' => 'Chart data retrieved successfully',
-            'data' => $chartData
         ]);
     }
 }

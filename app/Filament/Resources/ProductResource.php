@@ -34,28 +34,51 @@ class ProductResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\TextInput::make('receipt_number')
-                    ->required()
-                    ->maxLength(255)
-                    ->label('Nomor Resi')
-                    ->unique(ignoreRecord: true),
-                Forms\Components\Select::make('delivery_id')
-                    ->relationship('delivery', 'name')
-                    ->required()
-                    ->label('Jenis Pengiriman'),
-                Forms\Components\Select::make('status_product_id')
-                    ->relationship('status', 'name')
-                    ->required()
-                    ->label('Status'),
-                Forms\Components\Textarea::make('description')
-                    ->label('Keterangan'),
-                Forms\Components\FileUpload::make('image')
-                    ->required()
-                    ->label('Sebelum'),
-                Forms\Components\FileUpload::make('unboxing_image')
-                    ->required()
-                    ->label('Sesudah'),
+                Forms\Components\Section::make('Informasi Paket')
+                    ->schema([
+                        Forms\Components\TextInput::make('receipt_number')
+                            ->required()
+                            ->maxLength(255)
+                            ->label('Nomor Resi')
+                            ->unique(ignoreRecord: true)
+                            ->columnSpan(2),
+                        Forms\Components\Grid::make(2)
+                            ->schema([
+                                Forms\Components\Select::make('delivery_id')
+                                    ->relationship('delivery', 'name')
+                                    ->required()
+                                    ->label('Jenis Pengiriman'),
+                                Forms\Components\Select::make('status_product_id')
+                                    ->relationship('status', 'name')
+                                    ->required()
+                                    ->label('Status'),
+                            ]),
+                        Forms\Components\Select::make('employee_id')
+                            ->relationship('employee', 'name')
+                            ->required()
+                            ->label('Diproses Oleh'),
+                        Forms\Components\Textarea::make('description')
+                            ->label('Keterangan')
+                            ->columnSpan(2),
+                    ])
+                    ->columns(2),
 
+                Forms\Components\Section::make('Dokumentasi')
+                    ->schema([
+                        Forms\Components\Grid::make(2)
+                            ->schema([
+                                Forms\Components\FileUpload::make('image')
+                                    ->required()
+                                    ->image()
+                                    ->imageEditor()
+                                    ->label('Sebelum'),
+                                Forms\Components\FileUpload::make('unboxing_image')
+                                    ->required()
+                                    ->image()
+                                    ->imageEditor()
+                                    ->label('Sesudah'),
+                            ]),
+                    ]),
             ]);
     }
 
